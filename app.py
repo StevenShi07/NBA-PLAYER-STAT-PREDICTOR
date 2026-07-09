@@ -1,4 +1,5 @@
 import streamlit as st
+import time
 from nba_api.stats.static import players
 from nba_api.stats.endpoints import playergamelog
 
@@ -9,6 +10,31 @@ st.info(
     "This app uses recent player form and matchup history to estimate stat hit rates. "
     "This is for educational/project purposes only, not betting advice."
 )
+
+
+# -----------------------------
+# Cached NBA API request
+# -----------------------------
+
+@st.cache_data(ttl=3600)
+def get_player_game_logs(player_id, selected_season):
+    for attempt in range(3):
+        try:
+            game_log = playergamelog.PlayerGameLog(
+                player_id=player_id,
+                season=selected_season,
+                timeout=90
+            )
+
+            games = game_log.get_data_frames()[0]
+
+            return games
+
+        except Exception:
+            time.sleep(3)
+
+    return None
+
 
 # -----------------------------
 # Get NBA player list
@@ -122,18 +148,12 @@ if st.button("Predict"):
         else:
             player_id = nba_players[0]["id"]
 
-            try:
-                game_log = playergamelog.PlayerGameLog(
-                    player_id=player_id,
-                    season=selected_season,
-                    timeout=60
-                )
+            with st.spinner("Loading NBA stats... this may take a few seconds."):
+                games = get_player_game_logs(player_id, selected_season)
 
-            except Exception:
-                st.error("NBA stats took too long to respond. Please wait a few seconds and try again.")
+            if games is None:
+                st.error("NBA.com stats are taking too long to respond. Please try again in a minute.")
                 st.stop()
-
-            games = game_log.get_data_frames()[0]
 
             if len(games) == 0:
                 st.error("No game logs found for this player in the selected season.")
