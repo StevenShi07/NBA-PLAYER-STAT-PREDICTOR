@@ -122,10 +122,16 @@ if st.button("Predict"):
         else:
             player_id = nba_players[0]["id"]
 
-            game_log = playergamelog.PlayerGameLog(
-                player_id=player_id,
-                season=selected_season
-            )
+            try:
+                game_log = playergamelog.PlayerGameLog(
+                    player_id=player_id,
+                    season=selected_season,
+                    timeout=60
+                )
+
+            except Exception:
+                st.error("NBA stats took too long to respond. Please wait a few seconds and try again.")
+                st.stop()
 
             games = game_log.get_data_frames()[0]
 
